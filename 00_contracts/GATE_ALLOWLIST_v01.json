@@ -37,6 +37,11 @@
       "purpose": "p1_operating_center_and_full_quality_validation",
       "command_ids": [
         "PRIVATE_REPOSITORY_MARKERS",
+        "RUBY_VERSION",
+        "NODE_VERSION",
+        "BUNDLE_INSTALL",
+        "YARN_INSTALL",
+        "DB_PREPARE",
         "OC_SELF_TEST",
         "OC_AGGREGATE",
         "OC_TARGETED_RSPEC",
