@@ -36,8 +36,6 @@ private_sha=<exact lowercase 40-character SHA>
 private_pr=52
 gate_id=LOVEBOX_PUBLIC_RUNNER_SMOKE_V01|LOVEBOX_P1_OC_EXACT_HEAD_V01
 status_context=public-runner/lovebox/smoke|public-runner/lovebox/p1-oc-exact-head
-write_status=true|false
-write_pr_comment=true|false
 ```
 
 Repository, branch, gate, and status context are choice-restricted. Gate and status
@@ -51,9 +49,9 @@ structured inputs, resolves the allowlisted private branch, proves branch head e
 detaches the exact SHA, removes checkout authorization from Git configuration, runs
 only the fixed gate, and deletes the checkout in an `always()` cleanup step.
 
-The read authorization is not exported to test commands. The separate writeback job
-never checks out or executes private code. In this bootstrap revision both writeback
-scripts fail closed and perform no network write. Actual status/comment implementation,
+The read authorization is not exported to test commands. This bootstrap workflow has
+no writeback job and does not reference a private write credential. The retained
+writeback scripts fail closed and are not invoked. Actual status/comment implementation,
 minimum write access, and one-run authorization require a separate bounded successor.
 
 ## Action pins
@@ -86,11 +84,13 @@ are forbidden in public logs and artifacts. Public artifacts remain zero.
 ## Initial gates
 
 `LOVEBOX_PUBLIC_RUNNER_SMOKE_V01` proves structured policy, exact checkout, detached
-SHA, runtime setup and fixed repository markers.
+SHA, runtime setup and fixed repository markers. It does not install private dependencies
+or prepare the application database.
 
-`LOVEBOX_P1_OC_EXACT_HEAD_V01` may execute the Operating Center self-test and aggregate,
-targeted Operating Center RSpec, full RSpec, RuboCop, Brakeman, bundle-audit, Zeitwerk,
-JavaScript build and CSS build. Raw output remains ephemeral.
+`LOVEBOX_P1_OC_EXACT_HEAD_V01` may install locked dependencies, prepare the test database,
+and execute the Operating Center self-test and aggregate, targeted Operating Center
+RSpec, full RSpec, RuboCop, Brakeman, bundle-audit, Zeitwerk, JavaScript build and CSS
+build. Raw output remains ephemeral.
 
 ## Stop boundary
 
