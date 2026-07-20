@@ -41,6 +41,30 @@ class PublicRunnerPolicyTest(unittest.TestCase):
             ["LOVEBOX_PUBLIC_RUNNER_SMOKE_V01", "LOVEBOX_P1_OC_EXACT_HEAD_V01"],
         )
 
+    def test_full_gate_inventory_matches_executed_stages(self) -> None:
+        full_gate = self.allowlist["gates"][1]
+        self.assertEqual(
+            full_gate["command_ids"],
+            [
+                "PRIVATE_REPOSITORY_MARKERS",
+                "RUBY_VERSION",
+                "NODE_VERSION",
+                "BUNDLE_INSTALL",
+                "YARN_INSTALL",
+                "DB_PREPARE",
+                "OC_SELF_TEST",
+                "OC_AGGREGATE",
+                "OC_TARGETED_RSPEC",
+                "FULL_RSPEC",
+                "RUBOCOP",
+                "BRAKEMAN",
+                "BUNDLE_AUDIT",
+                "ZEITWERK",
+                "JS_BUILD",
+                "CSS_BUILD",
+            ],
+        )
+
     def test_exact_private_binding_and_no_eval(self) -> None:
         self.assertIn("TheGor-365/lovebox", self.workflow)
         self.assertIn("prod/lovebox-prod-dev-001-oc-baseline", self.workflow)
