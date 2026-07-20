@@ -119,7 +119,21 @@ class PublicRunnerPolicyTest(unittest.TestCase):
         self.assertIn('[[ "$(git -C private-checkout rev-parse HEAD)" == "$EXPECTED_SHA" ]]', self.workflow)
 
     def test_bundle_path_persists_and_full_setup_is_gate_scoped(self) -> None:
-        self.assertIn('BUNDLE_PATH: ${{ runner.temp }}/bundle', self.workflow)
+        job_header = self.workflow.split("    steps:", 1)[0]
+        self.assertNotIn("${{ runner.", job_header)
+        self.assertNotIn('BUNDLE_PATH: ${{ runner.temp }}/bundle', self.workflow)
+        dependency_path_step = (
+            "- name: Configure ephemeral dependency path\n"
+            "        shell: bash\n"
+            "        run: |\n"
+            "          set -euo pipefail\n"
+            "          printf '%s\\n' \"BUNDLE_PATH=$RUNNER_TEMP/bundle\" >> \"$GITHUB_ENV\""
+        )
+        self.assertIn(dependency_path_step, self.workflow)
+        self.assertLess(
+            self.workflow.index("- name: Configure ephemeral dependency path"),
+            self.workflow.index("- name: Set up Ruby"),
+        )
         self.assertIn(
             "- name: Install locked dependencies\n"
             "        if: ${{ inputs.gate_id == 'LOVEBOX_P1_OC_EXACT_HEAD_V01' }}",
