@@ -6,8 +6,9 @@ The runner capability is review-only. Do not dispatch until the public pull requ
 independently approved and merged, minimum repository access is configured outside Git,
 and private Lovebox authority permits one exact run.
 
-The bootstrap writeback scripts fail closed and perform no network write. Status or PR
-comment implementation requires a separate bounded successor.
+The bootstrap workflow has no writeback job. The retained writeback scripts fail closed
+and perform no network write. Status or PR comment implementation requires a separate
+bounded successor.
 
 ## Bootstrap dispatch candidate
 
@@ -18,12 +19,11 @@ private_sha=550e741d4120f2076d1f2d4afe5dfd37351ec2de
 private_pr=52
 gate_id=LOVEBOX_PUBLIC_RUNNER_SMOKE_V01
 status_context=public-runner/lovebox/smoke
-write_status=false
-write_pr_comment=false
 ```
 
 A later bounded run may select `LOVEBOX_P1_OC_EXACT_HEAD_V01` with its matching context.
-A branch/SHA mismatch stops before gate execution.
+A branch/SHA mismatch stops before gate execution. The smoke gate does not install
+private dependencies or prepare the test database.
 
 ## Evidence
 
@@ -49,7 +49,7 @@ BLOCKED=required authority or repository access is absent
 3. independently review action pins, input allowlists and authorization separation;
 4. merge only after explicit owner acceptance;
 5. configure minimum read access outside Git;
-6. authorize one smoke run with both write inputs false;
+6. authorize one read-only smoke run;
 7. verify visible steps and zero artifacts;
 8. authorize the P1 quality gate separately;
 9. implement writeback separately if required;
