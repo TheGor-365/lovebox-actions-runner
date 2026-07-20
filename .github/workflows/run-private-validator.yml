@@ -39,16 +39,6 @@ on:
         options:
           - public-runner/lovebox/smoke
           - public-runner/lovebox/p1-oc-exact-head
-      write_status:
-        description: Write compact status to the exact private commit
-        required: true
-        type: boolean
-        default: false
-      write_pr_comment:
-        description: Write compact result to private PR 52
-        required: true
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -89,15 +79,7 @@ jobs:
       RAILS_ENV: test
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/lovebox_test
       REDIS_URL: redis://localhost:6379/1
-    outputs:
-      result: ${{ steps.gate.outputs.result }}
-      exit_code: ${{ steps.gate.outputs.exit_code }}
-      summary_json: ${{ steps.gate.outputs.summary_json }}
-      rspec_example_count: ${{ steps.gate.outputs.rspec_example_count }}
-      rspec_failure_count: ${{ steps.gate.outputs.rspec_failure_count }}
-      rubocop_offense_count: ${{ steps.gate.outputs.rubocop_offense_count }}
-      brakeman_warning_count: ${{ steps.gate.outputs.brakeman_warning_count }}
-
+      BUNDLE_PATH: ${{ runner.temp }}/bundle
     steps:
       - name: Checkout public runner
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -118,7 +100,6 @@ jobs:
           PRIVATE_PR: ${{ inputs.private_pr }}
           GATE_ID: ${{ inputs.gate_id }}
           STATUS_CONTEXT: ${{ inputs.status_context }}
-          WRITE_PR_COMMENT: ${{ inputs.write_pr_comment }}
         run: |
           set -euo pipefail
           [[ "$PRIVATE_REPO" == "TheGor-365/lovebox" ]]
@@ -133,9 +114,6 @@ jobs:
             LOVEBOX_P1_OC_EXACT_HEAD_V01:public-runner/lovebox/p1-oc-exact-head) ;;
             *) exit 2 ;;
           esac
-          if [[ "$WRITE_PR_COMMENT" == "true" ]]; then
-            [[ "$PRIVATE_BRANCH" == "prod/lovebox-prod-dev-001-oc-baseline" ]]
-          fi
           printf '%s\n' "DISPATCH_POLICY=PASS"
 
       - name: Checkout allowlisted private branch
@@ -182,6 +160,7 @@ jobs:
           package-manager-cache: false
 
       - name: Install locked dependencies
+        if: ${{ inputs.gate_id == 'LOVEBOX_P1_OC_EXACT_HEAD_V01' }}
         shell: bash
         run: |
           set -uo pipefail
@@ -197,11 +176,11 @@ jobs:
             fi
             printf '%s\n' "${stage}=PASS"
           }
-          export BUNDLE_PATH="$RUNNER_TEMP/bundle"
-          run_quiet bundle_install bundle install --gemfile private-checkout/Gemfile --jobs 4 --retry 3
+          run_quiet bundle_install bash -c 'cd private-checkout && bundle install --jobs 4 --retry 3'
           run_quiet yarn_install bash -c 'cd private-checkout && corepack enable && corepack prepare yarn@1.22.22 --activate && yarn install --frozen-lockfile'
 
       - name: Prepare test database
+        if: ${{ inputs.gate_id == 'LOVEBOX_P1_OC_EXACT_HEAD_V01' }}
         shell: bash
         run: |
           set -uo pipefail
@@ -230,71 +209,3 @@ jobs:
         if: ${{ always() }}
         shell: bash
         run: rm -rf -- private-checkout
-
-  writeback-result:
-    name: writeback-result
-    needs: validate-private-sha
-    if: ${{ always() && (inputs.write_status || inputs.write_pr_comment) }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout public runner
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-
-      - name: Normalize compact result
-        id: outcome
-        shell: bash
-        env:
-          VALIDATION_JOB_RESULT: ${{ needs.validate-private-sha.result }}
-          GATE_RESULT: ${{ needs.validate-private-sha.outputs.result }}
-          GATE_EXIT_CODE: ${{ needs.validate-private-sha.outputs.exit_code }}
-        run: |
-          set -euo pipefail
-          result="$GATE_RESULT"
-          exit_code="$GATE_EXIT_CODE"
-          if [[ -z "$result" ]]; then
-            if [[ "$VALIDATION_JOB_RESULT" == "cancelled" ]]; then
-              result="ERROR"
-              exit_code="2"
-            else
-              result="ERROR"
-              exit_code="2"
-            fi
-          fi
-          case "$result" in PASS|FAIL|ERROR|BLOCKED) ;; *) exit 2 ;; esac
-          [[ "$exit_code" =~ ^[0-9]+$ ]]
-          printf 'result=%s\nexit_code=%s\n' "$result" "$exit_code" >> "$GITHUB_OUTPUT"
-
-      - name: Write private commit status
-        if: ${{ inputs.write_status }}
-        shell: bash
-        env:
-          PRIVATE_REPO_API_TOKEN: ${{ secrets.PRIVATE_REPO_WRITE_TOKEN }}
-          PRIVATE_REPO: ${{ inputs.private_repo }}
-          PRIVATE_SHA: ${{ inputs.private_sha }}
-          STATUS_CONTEXT: ${{ inputs.status_context }}
-          RESULT: ${{ steps.outcome.outputs.result }}
-          EXIT_CODE: ${{ steps.outcome.outputs.exit_code }}
-          PUBLIC_RUN_ID: ${{ github.run_id }}
-          PUBLIC_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: bash scripts/write_private_commit_status.sh
-
-      - name: Write compact private PR comment
-        if: ${{ inputs.write_pr_comment }}
-        shell: bash
-        env:
-          PRIVATE_REPO_API_TOKEN: ${{ secrets.PRIVATE_REPO_WRITE_TOKEN }}
-          PRIVATE_REPO: ${{ inputs.private_repo }}
-          PRIVATE_BRANCH: ${{ inputs.private_branch }}
-          PRIVATE_SHA: ${{ inputs.private_sha }}
-          PRIVATE_PR: ${{ inputs.private_pr }}
-          GATE_ID: ${{ inputs.gate_id }}
-          STATUS_CONTEXT: ${{ inputs.status_context }}
-          RESULT: ${{ steps.outcome.outputs.result }}
-          EXIT_CODE: ${{ steps.outcome.outputs.exit_code }}
-          SUMMARY_JSON: ${{ needs.validate-private-sha.outputs.summary_json }}
-          PUBLIC_RUN_ID: ${{ github.run_id }}
-          PUBLIC_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: bash scripts/write_private_pr_comment.sh
