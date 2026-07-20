@@ -79,7 +79,6 @@ jobs:
       RAILS_ENV: test
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/lovebox_test
       REDIS_URL: redis://localhost:6379/1
-      BUNDLE_PATH: ${{ runner.temp }}/bundle
     steps:
       - name: Checkout public runner
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -144,6 +143,12 @@ jobs:
             exit 2
           fi
           printf '%s\n' "PRIVATE_BRANCH_SHA_MATCH=true" "DETACHED_PRIVATE_SHA=true" "CHECKOUT_CREDENTIAL_REMOVED=true"
+
+      - name: Configure ephemeral dependency path
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "BUNDLE_PATH=$RUNNER_TEMP/bundle" >> "$GITHUB_ENV"
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@003a5c4d8d6321bd302e38f6f0ec593f77f06600
