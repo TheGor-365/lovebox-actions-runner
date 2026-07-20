@@ -1,0 +1,60 @@
+{
+  "document_id": "LOVEBOX_PUBLIC_RUNNER_GATE_ALLOWLIST_v01",
+  "schema_version": "1.0.0",
+  "runner_repository": "TheGor-365/lovebox-actions-runner",
+  "private_authority_repository": "TheGor-365/lovebox",
+  "source_of_truth": false,
+  "workflow_dispatch_only": true,
+  "arbitrary_command_input_allowed": false,
+  "private_content_public_exposure_allowed": false,
+  "public_artifacts_default": "none",
+  "cache_policy": "none",
+  "allowed_branches": [
+    "main",
+    "prod/lovebox-prod-dev-001-oc-baseline"
+  ],
+  "allowed_status_contexts": [
+    "public-runner/lovebox/smoke",
+    "public-runner/lovebox/p1-oc-exact-head"
+  ],
+  "gates": [
+    {
+      "gate_id": "LOVEBOX_PUBLIC_RUNNER_SMOKE_V01",
+      "enabled": true,
+      "status_context": "public-runner/lovebox/smoke",
+      "purpose": "policy_exact_sha_checkout_and_runtime_smoke",
+      "command_ids": [
+        "PRIVATE_REPOSITORY_MARKERS",
+        "RUBY_VERSION",
+        "NODE_VERSION"
+      ],
+      "production_green_authority": false
+    },
+    {
+      "gate_id": "LOVEBOX_P1_OC_EXACT_HEAD_V01",
+      "enabled": true,
+      "status_context": "public-runner/lovebox/p1-oc-exact-head",
+      "purpose": "p1_operating_center_and_full_quality_validation",
+      "command_ids": [
+        "PRIVATE_REPOSITORY_MARKERS",
+        "RUBY_VERSION",
+        "NODE_VERSION",
+        "BUNDLE_INSTALL",
+        "YARN_INSTALL",
+        "DB_PREPARE",
+        "OC_SELF_TEST",
+        "OC_AGGREGATE",
+        "OC_TARGETED_RSPEC",
+        "FULL_RSPEC",
+        "RUBOCOP",
+        "BRAKEMAN",
+        "BUNDLE_AUDIT",
+        "ZEITWERK",
+        "JS_BUILD",
+        "CSS_BUILD"
+      ],
+      "p1_manifest_path_count": 23,
+      "production_green_authority": false
+    }
+  ]
+}
