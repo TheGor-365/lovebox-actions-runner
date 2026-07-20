@@ -51,12 +51,11 @@ class PublicRunnerPolicyTest(unittest.TestCase):
         self.assertIn("persist-credentials: false", self.workflow)
         self.assertIn("CHECKOUT_CREDENTIAL_REMOVED=true", self.workflow)
 
-    def test_writeback_is_separate_from_private_code(self) -> None:
-        writeback = self.workflow.split("  writeback-result:", 1)[1]
-        self.assertNotIn("private-checkout", writeback)
-        self.assertIn("PRIVATE_REPO_WRITE_TOKEN", writeback)
-        validate = self.workflow.split("  writeback-result:", 1)[0]
-        self.assertNotIn("PRIVATE_REPO_WRITE_TOKEN", validate)
+    def test_writeback_is_absent_from_bootstrap_workflow(self) -> None:
+        self.assertNotIn("writeback-result:", self.workflow)
+        self.assertNotIn("PRIVATE_REPO_WRITE_TOKEN", self.workflow)
+        self.assertNotIn("write_status:", self.workflow)
+        self.assertNotIn("write_pr_comment:", self.workflow)
 
     def test_contract_keeps_authority_and_acceptance_separate(self) -> None:
         for required in (
@@ -77,8 +76,6 @@ class PublicRunnerPolicyTest(unittest.TestCase):
             "private_pr:",
             "gate_id:",
             "status_context:",
-            "write_status:",
-            "write_pr_comment:",
         ):
             self.assertIn(required, self.workflow)
         for forbidden in ("raw_command:", "command_input:", "artifact_name:", "private_url:"):
@@ -90,12 +87,32 @@ class PublicRunnerPolicyTest(unittest.TestCase):
         self.assertIn("secrets.PRIVATE_REPO_READ_TOKEN", before_gate)
         gate_and_after = self.workflow.split("- name: Run allowlisted gate", 1)[1]
         self.assertNotIn("secrets.PRIVATE_REPO_READ_TOKEN", gate_and_after)
-        self.assertNotIn("PRIVATE_REPO_WRITE_TOKEN", self.workflow.split("  writeback-result:", 1)[0])
+        self.assertNotIn("PRIVATE_REPO_WRITE_TOKEN", self.workflow)
 
     def test_branch_sha_mismatch_and_successor_head_are_rejected(self) -> None:
         self.assertIn('actual_sha="$(git -C private-checkout rev-parse HEAD)"', self.workflow)
         self.assertIn('[[ "$actual_sha" == "$EXPECTED_SHA" ]]', self.workflow)
         self.assertIn('[[ "$(git -C private-checkout rev-parse HEAD)" == "$EXPECTED_SHA" ]]', self.workflow)
+
+    def test_bundle_path_persists_and_full_setup_is_gate_scoped(self) -> None:
+        self.assertIn('BUNDLE_PATH: ${{ runner.temp }}/bundle', self.workflow)
+        self.assertIn(
+            "- name: Install locked dependencies\n"
+            "        if: ${{ inputs.gate_id == 'LOVEBOX_P1_OC_EXACT_HEAD_V01' }}",
+            self.workflow,
+        )
+        self.assertIn(
+            "- name: Prepare test database\n"
+            "        if: ${{ inputs.gate_id == 'LOVEBOX_P1_OC_EXACT_HEAD_V01' }}",
+            self.workflow,
+        )
+        smoke_prefix = self.workflow.split("- name: Run allowlisted gate", 1)[0]
+        self.assertNotIn('export BUNDLE_PATH="$RUNNER_TEMP/bundle"', smoke_prefix)
+
+    def test_sanitizer_failure_is_fail_closed(self) -> None:
+        self.assertIn("if ! python scripts/sanitize_gate_summary.py", self.gate_script)
+        self.assertIn("ERROR_CODE=SANITIZER_FAILURE", self.gate_script)
+        self.assertRegex(self.gate_script, r"ERROR_CODE=SANITIZER_FAILURE\"\n  exit 2")
 
     def test_writeback_is_fail_closed_until_separate_authority(self) -> None:
         for script in (self.status_script, self.comment_script):
