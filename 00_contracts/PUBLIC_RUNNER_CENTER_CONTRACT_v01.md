@@ -12,6 +12,7 @@ GLOBAL_PERMISSION=contents:read
 PUBLIC_ARTIFACT_POLICY=none
 CACHE_POLICY=none
 ACCESS_CONFIGURATION_AUTHORIZED=false
+WRITEBACK_IMPLEMENTATION_STATUS=DEFERRED_FAIL_CLOSED
 WORKFLOW_DISPATCH_AUTHORIZED=false
 MERGE_AUTHORIZED=false
 NO_FAKE_GREEN=true
@@ -43,24 +44,17 @@ Repository, branch, gate, and status context are choice-restricted. Gate and sta
 context must form an exact approved pair. No command, path, URL, script fragment,
 environment assignment, artifact name, or arbitrary repository input exists.
 
-## Exact-SHA and credential boundary
+## Exact-SHA boundary
 
-The validation job:
+The validation job checks out this runner without persisted credentials, validates all
+structured inputs, resolves the allowlisted private branch, proves branch head equality,
+detaches the exact SHA, removes checkout authorization from Git configuration, runs
+only the fixed gate, and deletes the checkout in an `always()` cleanup step.
 
-1. checks out this public runner without persisted credentials;
-2. validates all structured inputs;
-3. checks out the allowlisted private branch with a read-only credential supplied only
-   to that checkout step;
-4. proves the resolved branch head equals `private_sha`;
-5. detaches the exact SHA;
-6. removes credential-bearing Git configuration before any private command executes;
-7. runs only the selected fixed gate;
-8. deletes the private checkout in an `always()` cleanup step.
-
-The private read credential is not exported to test commands. The private write
-credential is referenced only by the separate writeback job, which never checks out or
-executes private code. No credential value may be printed, stored, included in status
-descriptions, included in comments, or uploaded.
+The read authorization is not exported to test commands. The separate writeback job
+never checks out or executes private code. In this bootstrap revision both writeback
+scripts fail closed and perform no network write. Actual status/comment implementation,
+minimum write access, and one-run authorization require a separate bounded successor.
 
 ## Action pins
 
@@ -76,52 +70,29 @@ actions/setup-node=b789df37d6b7526a863bf51b65df64f3f56ffe4f
 ```text
 PASS=all commands in the selected gate executed and returned zero
 FAIL=at least one allowlisted command executed and returned nonzero
-ERROR=policy, checkout, setup, runner, or infrastructure failure
-BLOCKED=required authorization or access is unavailable
+ERROR=policy checkout setup runner or infrastructure failure
+BLOCKED=required authority or access is unavailable
 ```
 
-`ERROR` and `BLOCKED` are not validator failures. No step and no command output means
-no semantic result.
+`ERROR` and `BLOCKED` are not validator failures.
 
 ## Sanitized evidence
 
-Only compact metadata may be printed or written back:
+Only compact metadata may be printed: repository, branch, SHA, PR, gate, context,
+result, exit code, stage results and numeric counts. Raw test names, stack traces,
+source excerpts, file contents, user content, environment dumps and private archives
+are forbidden in public logs and artifacts. Public artifacts remain zero.
 
-```text
-PRIVATE_REPO
-PRIVATE_BRANCH
-PRIVATE_SHA
-PRIVATE_PR
-GATE_ID
-STATUS_CONTEXT
-RESULT
-EXIT_CODE
-STAGE_RESULTS
-RSPEC_EXAMPLE_COUNT
-RSPEC_FAILURE_COUNT
-RUBOCOP_OFFENSE_COUNT
-BRAKEMAN_WARNING_COUNT
-PRIVATE_CONTENT_PUBLIC_EXPOSURE=false
-PUBLIC_ARTIFACT_COUNT=0
-NO_FAKE_GREEN=true
-```
-
-Raw test names, stack traces, source excerpts, file contents, prompts, user content,
-recipient data, environment dumps, credentials, and private archives are forbidden in
-public logs and artifacts.
-
-## Initial gate boundary
+## Initial gates
 
 `LOVEBOX_PUBLIC_RUNNER_SMOKE_V01` proves structured policy, exact checkout, detached
-SHA, runtime setup, and fixed repository markers.
+SHA, runtime setup and fixed repository markers.
 
-`LOVEBOX_P1_OC_EXACT_HEAD_V01` may execute the frozen Operating Center manifest,
-Operating Center self-test and aggregate, targeted Operating Center RSpec, full RSpec,
-RuboCop, Brakeman, bundle-audit, Zeitwerk, JavaScript build, and CSS build. Raw output
-is captured to ephemeral files and only counts/result codes are exported.
+`LOVEBOX_P1_OC_EXACT_HEAD_V01` may execute the Operating Center self-test and aggregate,
+targeted Operating Center RSpec, full RSpec, RuboCop, Brakeman, bundle-audit, Zeitwerk,
+JavaScript build and CSS build. Raw output remains ephemeral.
 
-## Current stop boundary
+## Stop boundary
 
-This bootstrap commit does not configure repository access, run a workflow, write a
-private status, write a private PR comment, merge the public PR, retire the legacy
-private workflow, or accept P1.
+This branch does not configure access, run a workflow, write private status/comment,
+merge the public PR, retire the legacy private workflow, or accept P1.
