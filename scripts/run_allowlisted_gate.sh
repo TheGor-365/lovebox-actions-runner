@@ -94,7 +94,7 @@ for stage in "${STAGES[@]}"; do
   fi
 done
 
-python scripts/sanitize_gate_summary.py \
+if ! python scripts/sanitize_gate_summary.py \
   --stage-dir "$TMP_DIR" \
   --gate-id "$GATE_ID" \
   --private-repo "$PRIVATE_REPO" \
@@ -103,6 +103,9 @@ python scripts/sanitize_gate_summary.py \
   --private-pr "$PRIVATE_PR" \
   --status-context "$STATUS_CONTEXT" \
   --overall-exit-code "$overall_rc" \
-  --github-output "${GITHUB_OUTPUT:-}"
+  --github-output "${GITHUB_OUTPUT:-}"; then
+  printf '%s\n' "RESULT=ERROR" "ERROR_CODE=SANITIZER_FAILURE"
+  exit 2
+fi
 
 exit "$overall_rc"
